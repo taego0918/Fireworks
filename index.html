@@ -32,16 +32,23 @@
                     self.upCount    = 30;
                     self.downSpeed  = 50;
                     self.bombCount  = 100;
-                    self.bombListEndPoint = [];
-                    self.bombListPoint = [];
-                    self.bombListOffset = [];
-                    self.downList = [-0.5,0,0.5];
+                    self.bombProgress = 0;
+                    self.bombListEndPoint   = [];
+                    self.bombListPoint      = [];
+                    self.bombListOffset     = [];
+                    self.bombListControl    = [];
+                    self.bombCpList         = [];
+                    self.offsetList = [-0.5,0,0.5];
                     self.bombEnd = false;
                     self.type = 'liftOff';
                     self.colorList = [  {r:255,g:  0,b:  0,o:1},
                                         {r:  0,g:255,b:  0,o:1},
-                                        {r:  0,g:  0,b:255,o:1}];
-                    self.color = self.colorList[self.getRandom(0,3)];
+                                        {r:  0,g:  0,b:255,o:1},
+                                        {r:255,g:255,b:  0,o:1},
+                                        {r:  0,g:255,b:255,o:1},
+                                        {r:255,g:  0,b:255,o:1}
+                                        ];
+                    self.color = self.colorList[self.getRandom(0,6)];
                     let loop = null;
                     
                     self.canvas.width  = self.radius * 2;
@@ -57,8 +64,16 @@
                                                     y : Math.sin( angle * Math.PI / 180 ) * distance});
                         self.bombListPoint.push({   x : self.bombOrigin.x,
                                                     y : self.bombOrigin.y});
+
+                        self.bombListControl.push({ x : self.bombOrigin.x + (self.bombListEndPoint[item].x/2),
+                                                    y : self.bombOrigin.y + (self.bombListEndPoint[item].y/2) - (self.radius/5) });
                         self.bombListOffset.push({  x : self.bombListEndPoint[item].x / 60,
                                                     y : self.bombListEndPoint[item].y / 60});
+                        self.bombCpList.push([self.bombOrigin,
+                                              self.bombListControl[item],
+                                             {  x: self.bombOrigin.x +self.bombListEndPoint[item].x,
+                                                y: self.bombOrigin.y +self.bombListEndPoint[item].y
+                                            }]);
                     }
 
                     self.canvas.style.left      = parseFloat(self.startPoint - self.radius)+'px';
@@ -80,46 +95,73 @@
                             if(self.color.b !== 255){self.color.b = 200};
                         }
                         for(let item = 0;item < self.upCount ;item++){
-                        ctx.fillStyle = 'rgba('+self.color.r +','+
-                                                self.color.g +','+
-                                                self.color.b +','+
-                                                self.color.o * (( self.upCount-item)/self.upCount) +')';
-                        ctx.fillRect(self.radius - (self.gridRadius/2),
-                                     self.canvas.height - (self.nowHeight - (self.gridRadius/2)) + item * (self.upSpeed / 60) ,
-                                     self.gridRadius * (( self.upCount-item)/self.upCount)  ,
-                                     self.gridRadius);
+                            ctx.fillStyle = 'rgba('+self.color.r +','+
+                                                    self.color.g +','+
+                                                    self.color.b +','+
+                                                    self.color.o * (( self.upCount-item)/self.upCount) +')';
+
+                            ctx.fillRect(self.radius - (self.gridRadius/2) + (self.offsetList[self.getRandom(0,3)] * item / 2 ),
+                                        self.canvas.height - (self.nowHeight - (self.gridRadius/2)) + item * (self.upSpeed / 60) ,
+                                        self.gridRadius * (( self.upCount-item)/self.upCount),
+                                        self.gridRadius * (( self.upCount-item)/self.upCount));
                         }
                         self.nowHeight += (self.upSpeed / 60);
                     }
                     //爆炸
                     self.bomb = ()=>{
+                        // let bombProgress = self.radius/60*self.bombProgress;
+                        // let radgrad = ctx.createRadialGradient(self.radius,self.radius,0,self.radius,bombProgress);
+                        //     radgrad.addColorStop(0, 'rgba('+self.color.r +','+self.color.g +','+self.color.b +',0.1)');
+                        //     radgrad.addColorStop(0.5, 'rgba('+self.color.r +','+self.color.g +','+self.color.b +',0.05)');
+                        //     radgrad.addColorStop(1, 'rgba('+self.color.r +','+self.color.g +','+self.color.b +',0)');
+                        // ctx.fillStyle = radgrad;
+                        // ctx.fillStyle = 'rgba('+self.color.r +','+
+                        //                         self.color.g +','+
+                        //                         self.color.b +',0.03)';
+                        
                         ctx.fillStyle = 'rgba('+self.color.r +','+
+                                                self.color.g +','+
+                                                self.color.b +','+
+                                                0.1 +')';
+                        ctx.strokeStyle = 'rgba('+self.color.r +','+
                                                 self.color.g +','+
                                                 self.color.b +','+
                                                 self.color.o +')';
                         for(let item = 0;item < self.bombCount ;item++){
-                            ctx.fillRect( self.bombListPoint[item].x - (self.gridRadius/2),
-                                          self.bombListPoint[item].y - (self.gridRadius/2),
-                                          self.gridRadius,
-                                          self.gridRadius);
-                            
+                            let BezierData = self.quadraticCurvePoint(self.bombCpList[item], self.bombProgress/60);
+                                ctx.beginPath();
+                                ctx.moveTo(self.bombOrigin.x,self.bombOrigin.y);
+                                ctx.quadraticCurveTo(BezierData[1].x,BezierData[1].y,BezierData[0].x,BezierData[0].y);
+                                ctx.stroke();
+                                // ctx.fillRect( self.bombListPoint[item].x - (self.gridRadius*5),
+                                //               self.bombListPoint[item].y - (self.gridRadius*5),
+                                //               self.gridRadius*10,
+                                //               self.gridRadius*10);
+                                ctx.beginPath();
+                                ctx.arc(BezierData[0].x,
+                                        BezierData[0].y,
+                                        self.gridRadius * 4, 0, Math.PI*2, true);
+                                ctx.fill();
+
                             if( parseInt(self.bombListPoint[item].x) == parseInt(self.bombOrigin.x + self.bombListEndPoint[item].x) &&
                                 parseInt(self.bombListPoint[item].y) == parseInt(self.bombOrigin.y + self.bombListEndPoint[item].y)){
                                 self.type = 'comeDown';
+                                self.color.o = 0.1;
                                 break;
                             }
                             self.bombListPoint[item].x += self.bombListOffset[item].x;
                             self.bombListPoint[item].y += self.bombListOffset[item].y;
                         }
-                        if(self.color.r <= 0 || self.color.g <= 0 || self.color.b <= 0){
-                            if(self.color.r!==255){self.color.r = 0};
-                            if(self.color.g!==255){self.color.g = 0};
-                            if(self.color.b!==255){self.color.b = 0};
-                        }else{
-                            if(self.color.r!==255){self.color.r -= 3};
-                            if(self.color.g!==255){self.color.g -= 3};
-                            if(self.color.b!==255){self.color.b -= 3};
-                        }
+                        self.bombProgress++;
+                        // if(self.color.r <= 0 || self.color.g <= 0 || self.color.b <= 0){
+                        //     if(self.color.r!==255){self.color.r = 0};
+                        //     if(self.color.g!==255){self.color.g = 0};
+                        //     if(self.color.b!==255){self.color.b = 0};
+                        // }else{
+                        //     if(self.color.r!==255){self.color.r -= 3};
+                        //     if(self.color.g!==255){self.color.g -= 3};
+                        //     if(self.color.b!==255){self.color.b -= 3};
+                        // }
                     }
                     //墜落
                     self.comeDown = ()=>{
@@ -131,13 +173,19 @@
                                                 self.color.b +','+
                                                 self.color.o +')';
                         for(let item = 0;item < self.bombCount ;item++){
-                            ctx.fillRect( self.bombListPoint[item].x - (self.gridRadius/2),
-                                          self.bombListPoint[item].y - (self.gridRadius/2),
-                                          self.gridRadius,
-                                          self.gridRadius);
+                            ctx.beginPath();
+                            ctx.arc(self.bombListPoint[item].x,
+                                    self.bombListPoint[item].y,
+                                    self.gridRadius * 3, 0, Math.PI*2, true);
+                            
+                            ctx.fill();
+                            // ctx.fillRect( self.bombListPoint[item].x - (self.gridRadius/2),
+                            //               self.bombListPoint[item].y - (self.gridRadius/2),
+                            //               self.gridRadius,
+                            //               self.gridRadius);
                             self.bombListPoint[item].y += (self.downSpeed / 60);
-                            self.bombListPoint[item].x += self.downList[self.getRandom(0,3)];
-                            self.color.o-=0.0005;
+                            self.bombListPoint[item].x += self.offsetList[self.getRandom(0,3)];
+                            self.color.o-=0.00001;
                         }
                     }
                     self.delete =()=>{
@@ -170,10 +218,24 @@
                 }
 
                 Fireworks.prototype.getRandom =(min,max)=>{//隨機
-                    return Math.floor(Math.random()*max)+min;
+                    let disparity = max - min;
+                    return Math.floor(Math.random() * disparity)+min;
                 };
+                Fireworks.prototype.quadraticCurvePoint = (cp,t)=>{
+                    let ax,ay,bx,by,b,result = {x:0,y:0};
+                    ax = cp[0].x + (cp[1].x - cp[0].x) * t;
+                    ay = cp[0].y + (cp[1].y - cp[0].y) * t;
+                    bx = cp[1].x + (cp[2].x - cp[1].x) * t;
+                    by = cp[1].y + (cp[2].y - cp[1].y) * t;
+                    
+                    result.x = ax + (bx - ax) * t;
+                    result.y = ay + (by - ay) * t;
+                    return [result,{x:ax,y:ay}];
+                }
+
                 let getRandom =(min,max)=>{//隨機
-                    return Math.floor(Math.random()*max)+min;
+                    let disparity = max - min;
+                    return Math.floor(Math.random() * disparity)+min;
                 };
                 let main = document.getElementById('main');
                 // new Fireworks(main);
@@ -181,10 +243,9 @@
                 let lastTime = 0;
                 let creatFireWorks = (timestamp)=>{
                     let dt = timestamp - lastTime;
-                    console.log(timestamp);
                     requestAnimationFrame(creatFireWorks);
                     if(dt<10)return;
-                    if(dt>1000){timestamp+=16;}
+                    if(dt>1000)return;
                     lastTime = timestamp;
                     if(progress > timestamp)return
                     new Fireworks(main);
