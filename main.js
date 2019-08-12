@@ -14,17 +14,17 @@ window.onload = function(){
         self.height     = _height || self.getRandom(300, parseFloat(self.main.offsetHeight - self.radius)); 
         self.nowHeight  = 0;
         self.gridRadius = 2;
-        self.upSpeed    = 500;
+        self.upSpeed    = 800;
         self.upCount    = 5;
         self.downSpeed  = 50;
-        self.bombCount  = 25;
+        self.bombCount  = 20;
         self.bombProgress = 0;
         self.bombListEndPoint   = [];
         self.bombListPoint      = [];
         self.bombListOffset     = [];
         self.bombListControl    = [];
         self.bombCpList         = [];
-        self.bombTimeOut        = 50;
+        self.bombTimeOut        = 30;
         self.offsetList = [-0.5,0,0.5];
         self.bombEnd = false;
         self.type = 'liftOff';
@@ -81,12 +81,12 @@ window.onload = function(){
             }
             for(let item = 0;item < self.upCount ;item++){
                 // graphics.beginFill('0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),self.color.o * (( self.upCount-item)/self.upCount));
-                graphics.beginFill('0xCCCCCC',0.5 / (1+item*4));
+                graphics.beginFill('0xCCCCCC',0.5 / (1+item*6));
                 
 
                 graphics.drawCircle(self.radius - (self.gridRadius/2) + (self.offsetList[self.getRandom(0,3)] * item / 2 ),
                                     parseFloat(self.height + self.radius) - (self.nowHeight - (self.gridRadius/2)) + item * (self.upSpeed / 60) ,
-                                    self.gridRadius * ((3+item)/3));
+                                    self.gridRadius * ((1+item/2)/1));
                 graphics.endFill();
             }
             self.nowHeight += (self.upSpeed / 60);
@@ -198,7 +198,8 @@ window.onload = function(){
         
         result.x = ax + (bx - ax) * t;
         result.y = ay + (by - ay) * t;
-        return [result,{x:ax,y:ay}];
+        // return [result,{x:ax,y:ay}];
+        return [result];
     }
 
     let getRandom =(min,max)=>{//隨機
@@ -224,6 +225,6 @@ window.onload = function(){
         new Fireworks(main,startPoint,height,radius,colorList[randowmColor]);
         colorList.splice(randowmColor, 1);
         new Fireworks(main,startPoint,height,radius,colorList[getRandom(0,colorList.length)]);
-        progress += getRandom(1,2) * 60;
+        progress += getRandom(1,2) * 30;
     });
 }
