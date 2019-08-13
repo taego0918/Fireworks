@@ -1,10 +1,9 @@
 window.onload = function(){
 
     let main = document.getElementById('main');
-    const app = new PIXI.Application({ antialias: true,width: main.offsetWidth,height:main.offsetWidth,transparent:true });
+    const app = new PIXI.Application({ antialias: true,width: main.offsetWidth,height:main.offsetHeight,transparent:true });
+    // 新增至頁面
     main.appendChild(app.view);
-    const graphics = new PIXI.Graphics();
-    app.stage.addChild(graphics);
 
     let Fireworks = function(_main, _startPoint , _height,_radius , _color ){
         let self = this;
@@ -17,16 +16,22 @@ window.onload = function(){
         self.upSpeed    = 800;
         self.upCount    = 5;
         self.downSpeed  = 50;
-        self.bombCount  = 20;
-        self.bombProgress = 0;
-        self.bombListEndPoint   = [];
-        self.bombListPoint      = [];
-        self.bombListOffset     = [];
-        self.bombListControl    = [];
-        self.bombCpList         = [];
-        self.bombTimeOut        = 30;
+        self.bomb = {
+            count           : 30,
+            progress        : 0,
+            listEndPoint    : [],
+            listPoint       : [],
+            listOffset      : [],
+            listControl     : [],
+            cpList          : [],
+            timeOut         : 50,
+            elementsList    : [],
+            end             : false,
+            origin : { x : self.radius ,
+                       y : parseFloat(parseFloat(self.height + self.radius) - self.height)
+                    }
+        }
         self.offsetList = [-0.5,0,0.5];
-        self.bombEnd = false;
         self.type = 'liftOff';
         self.colorList = [  {r:255,g:  0,b:  0,o:1},
                             {r:  0,g:255,b:  0,o:1},
@@ -35,29 +40,24 @@ window.onload = function(){
                             {r:  0,g:255,b:255,o:1},
                             {r:255,g:  0,b:255,o:1}];
         self.color = _color || self.colorList[self.getRandom(0,6)];
-        
-        // self.canvas.width  = self.radius * 2;
-        // self.canvas.height = parseFloat(self.height + self.radius);
 
-        self.bombOrigin = { x : self.radius ,
-                            y : parseFloat(parseFloat(self.height + self.radius) - self.height)};
-        for(let item = 0 ;item< self.bombCount;item++){
+        let gr , texture;
+        for(let item = 0 ;item< self.bomb.count;item++){
             let distance = self.getRandom( self.radius/10 , self.radius );
             let angle    = self.getRandom( 0 , 360 );
             Math.sin( angle * Math.PI / 180 ) * distance;
-            self.bombListEndPoint.push({x : Math.cos( angle * Math.PI / 180 ) * distance,
-                                        y : Math.sin( angle * Math.PI / 180 ) * distance});
-            self.bombListPoint.push({   x : self.bombOrigin.x,
-                                        y : self.bombOrigin.y});
-
-            self.bombListControl.push({ x : self.bombOrigin.x + (self.bombListEndPoint[item].x/2),
-                                        y : self.bombOrigin.y + (self.bombListEndPoint[item].y/2) - (self.radius/4) });
-            self.bombListOffset.push({  x : self.bombListEndPoint[item].x / self.bombTimeOut,
-                                        y : self.bombListEndPoint[item].y / self.bombTimeOut});
-            self.bombCpList.push([self.bombOrigin,
-                                  self.bombListControl[item],
-                                 {  x: self.bombOrigin.x +self.bombListEndPoint[item].x,
-                                    y: self.bombOrigin.y +self.bombListEndPoint[item].y
+            self.bomb.listEndPoint.push({   x : Math.cos( angle * Math.PI / 180 ) * distance,
+                                            y : Math.sin( angle * Math.PI / 180 ) * distance});
+            self.bomb.listPoint.push({      x : self.bomb.origin.x,
+                                            y : self.bomb.origin.y});
+            self.bomb.listControl.push({    x : self.bomb.origin.x + (self.bomb.listEndPoint[item].x/2),
+                                            y : self.bomb.origin.y + (self.bomb.listEndPoint[item].y/2) - (self.radius/4) });
+            self.bomb.listOffset.push({     x : self.bomb.listEndPoint[item].x / self.bomb.timeOut,
+                                            y : self.bomb.listEndPoint[item].y / self.bomb.timeOut});
+            self.bomb.cpList.push([self.bomb.origin,
+                                  self.bomb.listControl[item],
+                                 {  x: self.bomb.origin.x +self.bomb.listEndPoint[item].x,
+                                    y: self.bomb.origin.y +self.bomb.listEndPoint[item].y
                                 }]);
         }
 
@@ -68,8 +68,9 @@ window.onload = function(){
         app.stage.addChild(graphics);
         //清空
         self.clearRect = ()=>{
-            // ctx.clearRect(0,0,self.canvas.offsetWidth,self.canvas.offsetHeight);
-            graphics.clear();
+            // if(self.type !== 'bomb'){
+                graphics.clear();
+            // }
         }
         //昇空
         self.liftOff = ()=>{
@@ -78,12 +79,16 @@ window.onload = function(){
                 if(self.color.r !== 255){self.color.r = 150};
                 if(self.color.g !== 255){self.color.g = 150};
                 if(self.color.b !== 255){self.color.b = 150};
+
+                gr = new PIXI.Graphics();  
+                gr.beginFill('0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),1);
+                gr.drawCircle( self.gridRadius/2,self.gridRadius/2,self.gridRadius);
+                gr.endFill();
+                
+                texture = app.renderer.generateTexture(gr);
             }
             for(let item = 0;item < self.upCount ;item++){
-                // graphics.beginFill('0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),self.color.o * (( self.upCount-item)/self.upCount));
                 graphics.beginFill('0xCCCCCC',0.5 / (1+item*6));
-                
-
                 graphics.drawCircle(self.radius - (self.gridRadius/2) + (self.offsetList[self.getRandom(0,3)] * item / 2 ),
                                     parseFloat(self.height + self.radius) - (self.nowHeight - (self.gridRadius/2)) + item * (self.upSpeed / 60) ,
                                     self.gridRadius * ((1+item/2)/1));
@@ -92,69 +97,73 @@ window.onload = function(){
             self.nowHeight += (self.upSpeed / 60);
         }
         //爆炸
-        self.bomb = ()=>{
-            // console.log(self.bombProgress);
-            
-            for(let item = 0;item < self.bombCount ;item++){
-                // let BezierData = self.quadraticCurvePoint(self.bombCpList[item], self.bombProgress/self.bombTimeOut);
-                // graphics.lineStyle(3, '0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16), 1);
-                // graphics.moveTo(self.bombOrigin.x,self.bombOrigin.y);
-                // graphics.bezierCurveTo(self.bombOrigin.x,self.bombOrigin.y,
-                //                         BezierData[1].x,BezierData[1].y,
-                //                         BezierData[0].x,BezierData[0].y);
+        self.bomb.animation = ()=>{
+            for(let item = 0;item < self.bomb.count ;item++){
+                    if(self.bomb.elementsList.length < item+1){
+                        self.bomb.elementsList.push([]);
+                    }
                     for(let item2 = 0 ; item2 < 40;item2++){
-                        if(self.bombProgress-item2 <= 0 ){break;}
-                        let radius;
-                        let BezierData = self.quadraticCurvePoint(self.bombCpList[item], (self.bombProgress-item2)/self.bombTimeOut);
-                        graphics.beginFill('0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),
-                                            self.color.o *((self.bombTimeOut - item2)/self.bombTimeOut)/3 );
-                        
-                        if(item2 !== 0 ){
-                            radius = self.gridRadius * ((self.bombTimeOut - item2)/self.bombTimeOut);
-                        }else{
-                            graphics.drawCircle(BezierData[0].x,
-                                BezierData[0].y,
-                                self.gridRadius * 1.5);
-                            graphics.endFill();
-                            graphics.beginFill('0xFFFFFF',1);
-                            radius = self.gridRadius;
+                        if(self.bomb.progress-item2 <= 0 ){break;}
+                        if(self.bomb.elementsList[item].length < item2+1){
+                            self.bomb.elementsList[item].push(new PIXI.Sprite(texture));
+                            app.stage.addChild(self.bomb.elementsList[item][item2]);
                         }
-                        graphics.drawCircle(BezierData[0].x,
-                                            BezierData[0].y,
-                                            radius);
+                        let radius;
+                        let BezierData = self.quadraticCurvePoint(self.bomb.cpList[item], (self.bomb.progress-item2)/self.bomb.timeOut);
+                        if(item2 === 0 ){
+                            graphics.beginFill('0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),
+                                            self.color.o);
+                            graphics.drawCircle(BezierData[0].x + self.gridRadius/2,
+                                                BezierData[0].y + self.gridRadius/2,
+                                                self.gridRadius * 1.5);
+                            graphics.beginFill('0xFFFFFF',1);
+                            graphics.drawCircle(BezierData[0].x + self.gridRadius/2,
+                                                BezierData[0].y + self.gridRadius/2,
+                                                self.gridRadius * 1);
+                        }
+                        self.bomb.elementsList[item][item2].x = BezierData[0].x + graphics.x;
+                        self.bomb.elementsList[item][item2].y = BezierData[0].y + graphics.y;
+                        // self.bomb.elementsList[item][item2].scale.set(radius);
+                        self.bomb.elementsList[item][item2].alpha = self.color.o *((self.bomb.timeOut - item2)/self.bomb.timeOut)/3;
                         graphics.endFill();
                     }
 
-                if( parseInt(self.bombListPoint[item].x) == parseInt(self.bombOrigin.x + self.bombListEndPoint[item].x) &&
-                    parseInt(self.bombListPoint[item].y) == parseInt(self.bombOrigin.y + self.bombListEndPoint[item].y)){
+                if( parseInt(self.bomb.listPoint[item].x) == parseInt(self.bomb.origin.x + self.bomb.listEndPoint[item].x) &&
+                    parseInt(self.bomb.listPoint[item].y) == parseInt(self.bomb.origin.y + self.bomb.listEndPoint[item].y)){
                     self.type = 'comeDown';
                     self.color.o = 0.1;
+                    for(let i = 0;i < self.bomb.count ;i++){
+                        for(let ii = 1 ; ii < 40;ii++){
+                            self.bomb.elementsList[i][ii].destroy;
+                            app.stage.removeChild(self.bomb.elementsList[i][ii]);
+                        }
+                    }
                     break;
                 }
-                self.bombListPoint[item].x += self.bombListOffset[item].x;
-                self.bombListPoint[item].y += self.bombListOffset[item].y;
+                self.bomb.listPoint[item].x += self.bomb.listOffset[item].x;
+                self.bomb.listPoint[item].y += self.bomb.listOffset[item].y;
             }
-            self.bombProgress++;
+            self.bomb.progress++;
         }
         //墜落
         self.comeDown = ()=>{
             if(self.color.o <= 0){
                 self.type = 'delete';
             }
-            for(let item = 0;item < self.bombCount ;item++){
+            for(let item = 0;item < self.bomb.count ;item++){
                 let opennessList = [1/self.downSpeed,self.color.o];
                 let openness = opennessList[self.getRandom(0,2)];
-                graphics.lineStyle(3,'0x' + self.color.r.toString(16) + self.color.g.toString(16) + self.color.b.toString(16),openness);
-                graphics.drawCircle(self.bombListPoint[item].x,
-                                    self.bombListPoint[item].y,
-                                    self.gridRadius/2);
-                graphics.endFill();
-                self.bombListPoint[item].y += (self.downSpeed / 60);
-                self.bombListPoint[item].x += self.offsetList[self.getRandom(0,3)];
-                self.color.o-=0.00004;
+                self.bomb.elementsList[item][0].y += (self.downSpeed / 60);
+                self.bomb.elementsList[item][0].y += self.offsetList[self.getRandom(0,3)];
+                self.bomb.elementsList[item][0].alpha = openness;
             }
+            self.color.o-=0.0005;
         }
         self.delete =()=>{
+            for(let item = 0;item < self.bomb.count ;item++){
+                self.bomb.elementsList[item][0].destroy;
+                app.stage.removeChild(self.bomb.elementsList[item][0]);
+            }
             app.ticker.remove(() => {
                 self.draw();
             })
@@ -166,14 +175,13 @@ window.onload = function(){
                     self.liftOff();    
                     break;
                 case 'bomb':
-                    self.bomb();
+                    self.bomb.animation();
                     break;
                 case 'comeDown':
                     self.comeDown();
                     break;
                 case 'delete':
                     self.delete();
-                    // self.main.removeChild(self.canvas);
                     return;
                     break;
                 default:
@@ -225,6 +233,7 @@ window.onload = function(){
         new Fireworks(main,startPoint,height,radius,colorList[randowmColor]);
         colorList.splice(randowmColor, 1);
         new Fireworks(main,startPoint,height,radius,colorList[getRandom(0,colorList.length)]);
-        progress += getRandom(1,2) * 30;
+        timestamp   = 0;
+        progress    = getRandom(1,3) * 30;
     });
 }
